@@ -1,0 +1,86 @@
+---
+title: "PML: Prediction Assignment"
+output: html_document
+---
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Data 
+
+The training data for this project are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: 
+http://groupware.les.inf.puc-rio.br/har
+
+## Goal
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. 
+
+### Loading Data
+
+```{r}
+library('caret')
+library('randomForest')
+pml_training <- read.csv("./pml-training.csv", na.strings=c('NA', '', ' '))
+pml_test <- read.csv("./pml-testing.csv", na.strings=c('NA', '', ' '))
+pml_training <- pml_training[pml_training$new_window == 'no', ]
+```
+
+### Clean up Data
+
+Remove columns that are all NAs and irrelevant columns such index, username, timestamps, etc.
+
+```{r}
+ColumnsToRemove <- colSums(is.na(pml_training)) == nrow(pml_training)
+ColumnsToRemove[which(colnames(pml_training)=="X")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="user_name")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="raw_timestamp_part_1")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="raw_timestamp_part_2")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="cvtd_timestamp")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="num_window")] <- TRUE
+ColumnsToRemove[which(colnames(pml_training)=="new_window")] <- TRUE
+
+pml_training <- pml_training[, !ColumnsToRemove]
+pml_test <- pml_test[, !ColumnsToRemove]
+dim(pml_training)
+```
+
+### Exploratory Data Analysis
+### Fit the model and review the error
+
+```{r}
+model <- randomForest(classe ~ ., data=pml_training)
+model
+```
+
+We've created 500 trees with 7 variables at each split.  The OOB error rate is 0.31% which could be indicative of overfitting the data.
+
+### Plot the fit
+
+Here we review the ten most significant variables, which we could then investigate in a more restricted model.
+
+```{r}
+varImpPlot(model, n.var=10)
+```
+
+### Review Predictions and write to solution files
+
+```{r}
+predictions <- predict(model, newdata=pml_test)
+predictions
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(predictions)
+```
